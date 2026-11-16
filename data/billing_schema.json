@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloud-cost-optimizer.example/schemas/billing-record.json",
+  "title": "Billing Record",
+  "description": "Normalized billing and usage record accepted by the cloud cost optimization platform.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "organizationId",
+    "usageDate",
+    "service",
+    "resourceId",
+    "resourceType",
+    "project",
+    "team",
+    "region",
+    "usageHours",
+    "usageAmount",
+    "monthlyCost",
+    "utilizationPercent",
+    "storageGb",
+    "accessFrequency"
+  ],
+  "properties": {
+    "organizationId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+      "description": "Tenant identifier derived from the authenticated user or organization context."
+    },
+    "usageDate": {
+      "type": "string",
+      "format": "date",
+      "description": "Date represented by the billing record in ISO 8601 format."
+    },
+    "service": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "description": "Cloud service name, such as EC2, S3, Lambda, RDS, or EBS."
+    },
+    "resourceId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "description": "Cloud resource identifier or billing line-item identifier."
+    },
+    "resourceType": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "description": "Normalized resource category, such as small-instance, large-instance, gpu-instance, or storage."
+    },
+    "project": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "team": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "region": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "Cloud region, such as us-east-1."
+    },
+    "usageHours": {
+      "type": "number",
+      "minimum": 0
+    },
+    "usageAmount": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Usage quantity before currency conversion or billing calculation."
+    },
+    "monthlyCost": {
+      "type": "number",
+      "minimum": 0,
+      "multipleOf": 0.01,
+      "description": "Cost in the currency specified by currency."
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "default": "USD",
+      "description": "ISO 4217 currency code."
+    },
+    "utilizationPercent": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Average utilization percentage for the record period."
+    },
+    "storageGb": {
+      "type": "number",
+      "minimum": 0
+    },
+    "accessFrequency": {
+      "type": "string",
+      "enum": ["high", "medium", "low", "rare", "unknown"]
+    },
+    "tags": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Optional resource tags used for additional grouping."
+    }
+  }
+}

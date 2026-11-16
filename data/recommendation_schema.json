@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloud-cost-optimizer.example/schemas/recommendation.json",
+  "title": "Optimization Recommendation",
+  "description": "Deterministic finding produced by the rules and anomaly engine before optional AI explanation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "recommendationId",
+    "organizationId",
+    "analysisId",
+    "category",
+    "severity",
+    "status",
+    "resourceId",
+    "resourceType",
+    "service",
+    "issue",
+    "action",
+    "estimatedMonthlySavings",
+    "savingsCurrency",
+    "performanceRisk",
+    "reliabilityRisk",
+    "verificationStep",
+    "confidence",
+    "ruleId",
+    "createdAt"
+  ],
+  "properties": {
+    "recommendationId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "organizationId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "analysisId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "IDLE_COMPUTE",
+        "OVERSIZED_COMPUTE",
+        "RARELY_ACCESSED_STORAGE",
+        "UNDERUTILIZED_GPU",
+        "COST_ANOMALY",
+        "OTHER"
+      ]
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"]
+    },
+    "status": {
+      "type": "string",
+      "enum": ["NEW", "REVIEWED", "ACCEPTED", "DISMISSED", "IMPLEMENTED"]
+    },
+    "resourceId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "resourceType": {
+      "type": "string",
+      "minLength": 1
+    },
+    "service": {
+      "type": "string",
+      "minLength": 1
+    },
+    "project": {
+      "type": ["string", "null"]
+    },
+    "team": {
+      "type": ["string", "null"]
+    },
+    "issue": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000
+    },
+    "action": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000
+    },
+    "estimatedMonthlySavings": {
+      "type": "number",
+      "minimum": 0,
+      "multipleOf": 0.01
+    },
+    "savingsCurrency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "default": "USD"
+    },
+    "performanceRisk": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000
+    },
+    "reliabilityRisk": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000
+    },
+    "verificationStep": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "ruleId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable identifier for the deterministic rule that produced the finding."
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Observed values supporting the finding, such as utilizationPercent or monthlyCost."
+    },
+    "aiExplanation": {
+      "type": ["string", "null"],
+      "description": "Optional Bedrock explanation generated from this validated finding."
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    }
+  }
+}

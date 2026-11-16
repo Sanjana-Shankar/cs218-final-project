@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloud-cost-optimizer.example/schemas/analysis-response.json",
+  "title": "Analysis Response",
+  "description": "Response returned to the dashboard for one billing analysis.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "analysisId",
+    "organizationId",
+    "status",
+    "currency",
+    "period",
+    "summary",
+    "serviceCosts",
+    "projectCosts",
+    "teamCosts",
+    "dailyCosts",
+    "topResources",
+    "recommendations",
+    "anomalies",
+    "createdAt"
+  ],
+  "properties": {
+    "analysisId": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "organizationId": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "status": {
+      "type": "string",
+      "enum": ["QUEUED", "PROCESSING", "COMPLETED", "FAILED"]
+    },
+    "errorMessage": { "type": ["string", "null"] },
+    "currency": { "type": "string", "pattern": "^[A-Z]{3}$", "default": "USD" },
+    "period": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["startDate", "endDate"],
+      "properties": {
+        "startDate": { "type": "string", "format": "date" },
+        "endDate": { "type": "string", "format": "date" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["totalCost", "estimatedSavings", "recommendationCount", "anomalyCount", "recordCount"],
+      "properties": {
+        "totalCost": { "type": "number", "minimum": 0, "multipleOf": 0.01 },
+        "estimatedSavings": { "type": "number", "minimum": 0, "multipleOf": 0.01 },
+        "recommendationCount": { "type": "integer", "minimum": 0 },
+        "anomalyCount": { "type": "integer", "minimum": 0 },
+        "recordCount": { "type": "integer", "minimum": 0 },
+        "previousPeriodCost": { "type": ["number", "null"], "minimum": 0 },
+        "percentChangeFromPreviousPeriod": { "type": ["number", "null"] }
+      }
+    },
+    "serviceCosts": { "$ref": "#/$defs/costBreakdown" },
+    "projectCosts": { "$ref": "#/$defs/costBreakdown" },
+    "teamCosts": { "$ref": "#/$defs/costBreakdown" },
+    "dailyCosts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["date", "cost"],
+        "properties": {
+          "date": { "type": "string", "format": "date" },
+          "cost": { "type": "number", "minimum": 0, "multipleOf": 0.01 }
+        }
+      }
+    },
+    "topResources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["resourceId", "service", "resourceType", "cost"],
+        "properties": {
+          "resourceId": { "type": "string", "minLength": 1 },
+          "service": { "type": "string", "minLength": 1 },
+          "resourceType": { "type": "string", "minLength": 1 },
+          "cost": { "type": "number", "minimum": 0, "multipleOf": 0.01 },
+          "utilizationPercent": { "type": ["number", "null"], "minimum": 0, "maximum": 100 }
+        }
+      }
+    },
+    "recommendations": {
+      "type": "array",
+      "items": { "$ref": "recommendation_schema.json" }
+    },
+    "anomalies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["anomalyId", "type", "severity", "message", "observedValue", "expectedValue"],
+        "properties": {
+          "anomalyId": { "type": "string", "minLength": 1 },
+          "type": { "type": "string", "enum": ["COST_SPIKE", "UNUSUAL_USAGE", "NEW_RESOURCE", "OTHER"] },
+          "severity": { "type": "string", "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"] },
+          "message": { "type": "string", "minLength": 1 },
+          "observedValue": { "type": "number" },
+          "expectedValue": { "type": "number" },
+          "resourceId": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": ["string", "null"], "format": "date-time" }
+  },
+  "$defs": {
+    "costBreakdown": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "cost", "percentageOfTotal"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "cost": { "type": "number", "minimum": 0, "multipleOf": 0.01 },
+          "percentageOfTotal": { "type": "number", "minimum": 0, "maximum": 100 }
+        }
+      }
+    }
+  }
+}

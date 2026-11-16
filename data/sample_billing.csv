@@ -1,0 +1,11 @@
+organizationId,usageDate,service,resourceId,resourceType,project,team,region,usageHours,usageAmount,monthlyCost,currency,utilizationPercent,storageGb,accessFrequency
+org-demo,2026-10-01,EC2,i-website-001,small-instance,Website,Engineering,us-east-1,720,720,144.00,USD,4,0,low
+org-demo,2026-10-01,EC2,i-analytics-001,large-instance,Analytics,Data,us-east-1,720,720,288.00,USD,22,0,medium
+org-demo,2026-10-01,S3,bucket-archive-001,storage,Website,Engineering,us-east-1,0,500,75.00,USD,0,500,rare
+org-demo,2026-10-01,EC2,gpu-research-001,gpu-instance,ML-Research,Research,us-east-1,720,720,900.00,USD,8,0,low
+org-demo,2026-10-01,Lambda,lambda-api-001,serverless-function,Website,Engineering,us-east-1,36,100000,12.00,USD,48,0,high
+org-demo,2026-11-01,EC2,i-website-001,small-instance,Website,Engineering,us-east-1,720,720,144.00,USD,5,0,low
+org-demo,2026-11-01,EC2,i-analytics-001,large-instance,Analytics,Data,us-east-1,720,720,288.00,USD,20,0,medium
+org-demo,2026-11-01,S3,bucket-archive-001,storage,Website,Engineering,us-east-1,0,500,75.00,USD,0,500,rare
+org-demo,2026-11-01,EC2,gpu-research-001,gpu-instance,ML-Research,Research,us-east-1,720,720,900.00,USD,7,0,low
+org-demo,2026-11-01,Lambda,lambda-api-001,serverless-function,Website,Engineering,us-east-1,42,120000,14.00,USD,51,0,high

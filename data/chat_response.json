@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloud-cost-optimizer.example/schemas/chat-response.json",
+  "title": "Chat Response",
+  "description": "Grounded response returned by the cloud cost optimization assistant.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["conversationId", "analysisId", "answer", "confidence", "sources", "createdAt"],
+  "properties": {
+    "conversationId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "analysisId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "answer": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 5000
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["sourceType", "label"],
+        "properties": {
+          "sourceType": {
+            "type": "string",
+            "enum": ["ANALYSIS_SUMMARY", "RECOMMENDATION", "ANOMALY", "BILLING_RECORD"]
+          },
+          "sourceId": { "type": ["string", "null"] },
+          "label": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "citedResources": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "suggestedFollowUps": {
+      "type": "array",
+      "maxItems": 5,
+      "items": { "type": "string", "minLength": 1, "maxLength": 300 }
+    },
+    "disclaimer": {
+      "type": ["string", "null"],
+      "description": "Optional warning when the answer is estimated or requires verification."
+    },
+    "modelUsed": {
+      "type": ["string", "null"]
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

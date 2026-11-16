@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloud-cost-optimizer.example/schemas/chat-request.json",
+  "title": "Chat Request",
+  "description": "Request sent by the frontend to ask the cost optimization assistant a question.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["analysisId", "question"],
+  "properties": {
+    "analysisId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "question": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 2000,
+      "description": "Natural-language question from the authenticated user."
+    },
+    "conversationId": {
+      "type": ["string", "null"],
+      "maxLength": 128
+    },
+    "includeHistory": {
+      "type": "boolean",
+      "default": true
+    }
+  }
+}
