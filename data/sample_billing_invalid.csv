@@ -1,0 +1,2 @@
+organizationId,usageDate,service,resourceId,resourceType,project,team,region,usageHours,usageAmount,monthlyCost,currency,utilizationPercent,storageGb,accessFrequency
+org-demo,not-a-date,EC2,i-invalid,small-instance,Website,Engineering,us-east-1,720,720,-10.00,USD,140,0,unknown
