@@ -1,0 +1,251 @@
+{
+  "analysisId": "analysis-766b4253fcd0",
+  "organizationId": "org-demo",
+  "status": "COMPLETED",
+  "errorMessage": null,
+  "currency": "USD",
+  "period": {
+    "startDate": "2026-10-01",
+    "endDate": "2026-11-01"
+  },
+  "summary": {
+    "totalCost": 2840.0,
+    "estimatedSavings": 814.5,
+    "recommendationCount": 4,
+    "anomalyCount": 0,
+    "recordCount": 10,
+    "previousPeriodCost": 1419.0,
+    "percentChangeFromPreviousPeriod": 0.14
+  },
+  "serviceCosts": [
+    {
+      "name": "EC2",
+      "cost": 2664.0,
+      "percentageOfTotal": 93.8
+    },
+    {
+      "name": "S3",
+      "cost": 150.0,
+      "percentageOfTotal": 5.28
+    },
+    {
+      "name": "Lambda",
+      "cost": 26.0,
+      "percentageOfTotal": 0.92
+    }
+  ],
+  "projectCosts": [
+    {
+      "name": "ML-Research",
+      "cost": 1800.0,
+      "percentageOfTotal": 63.38
+    },
+    {
+      "name": "Analytics",
+      "cost": 576.0,
+      "percentageOfTotal": 20.28
+    },
+    {
+      "name": "Website",
+      "cost": 464.0,
+      "percentageOfTotal": 16.34
+    }
+  ],
+  "teamCosts": [
+    {
+      "name": "Research",
+      "cost": 1800.0,
+      "percentageOfTotal": 63.38
+    },
+    {
+      "name": "Data",
+      "cost": 576.0,
+      "percentageOfTotal": 20.28
+    },
+    {
+      "name": "Engineering",
+      "cost": 464.0,
+      "percentageOfTotal": 16.34
+    }
+  ],
+  "dailyCosts": [
+    {
+      "date": "2026-10-01",
+      "cost": 1419.0
+    },
+    {
+      "date": "2026-11-01",
+      "cost": 1421.0
+    }
+  ],
+  "topResources": [
+    {
+      "resourceId": "gpu-research-001",
+      "service": "EC2",
+      "resourceType": "gpu-instance",
+      "cost": 1800.0,
+      "utilizationPercent": 7.0
+    },
+    {
+      "resourceId": "i-analytics-001",
+      "service": "EC2",
+      "resourceType": "large-instance",
+      "cost": 576.0,
+      "utilizationPercent": 20.0
+    },
+    {
+      "resourceId": "i-website-001",
+      "service": "EC2",
+      "resourceType": "small-instance",
+      "cost": 288.0,
+      "utilizationPercent": 5.0
+    },
+    {
+      "resourceId": "bucket-archive-001",
+      "service": "S3",
+      "resourceType": "storage",
+      "cost": 150.0,
+      "utilizationPercent": 0.0
+    },
+    {
+      "resourceId": "lambda-api-001",
+      "service": "Lambda",
+      "resourceType": "serverless-function",
+      "cost": 26.0,
+      "utilizationPercent": 51.0
+    }
+  ],
+  "recommendations": [
+    {
+      "recommendationId": "rec-c7d40ea83430",
+      "organizationId": "org-demo",
+      "analysisId": "analysis-766b4253fcd0",
+      "category": "UNDERUTILIZED_GPU",
+      "severity": "CRITICAL",
+      "status": "NEW",
+      "resourceId": "gpu-research-001",
+      "resourceType": "gpu-instance",
+      "service": "EC2",
+      "project": "ML-Research",
+      "team": "Research",
+      "issue": "The GPU ran for 720.0 hours with 7.0% utilization.",
+      "action": "Schedule the GPU for expected training windows or stop it when idle.",
+      "estimatedMonthlySavings": 540.0,
+      "savingsCurrency": "USD",
+      "performanceRisk": "Scheduled execution may delay jobs submitted outside the planned window.",
+      "reliabilityRisk": "Stopping an active training job may lose progress if checkpoints are not configured.",
+      "verificationStep": "Confirm checkpointing, job schedules, and active workloads before changing it.",
+      "confidence": 0.9,
+      "ruleId": "always-on-gpu-under-20-percent",
+      "evidence": {
+        "monthlyCost": 900.0,
+        "utilizationPercent": 7.0,
+        "usageHours": 720.0,
+        "storageGb": 0.0,
+        "accessFrequency": "low"
+      },
+      "aiExplanation": null,
+      "createdAt": "2026-11-22T07:51:54.481701+00:00",
+      "updatedAt": null
+    },
+    {
+      "recommendationId": "rec-73612dece3c4",
+      "organizationId": "org-demo",
+      "analysisId": "analysis-766b4253fcd0",
+      "category": "IDLE_COMPUTE",
+      "severity": "HIGH",
+      "status": "NEW",
+      "resourceId": "i-website-001",
+      "resourceType": "small-instance",
+      "service": "EC2",
+      "project": "Website",
+      "team": "Engineering",
+      "issue": "The compute resource averaged 5.0% utilization.",
+      "action": "Stop or schedule the instance when it is not needed, or evaluate a smaller instance.",
+      "estimatedMonthlySavings": 136.8,
+      "savingsCurrency": "USD",
+      "performanceRisk": "Stopping the instance may interrupt workloads that still require it.",
+      "reliabilityRisk": "Scheduled shutdowns may affect availability if workload windows are misunderstood.",
+      "verificationStep": "Confirm workload schedules, dependencies, and recovery procedures before changing it.",
+      "confidence": 0.9,
+      "ruleId": "idle-ec2-under-10-percent",
+      "evidence": {
+        "monthlyCost": 144.0,
+        "utilizationPercent": 5.0,
+        "usageHours": 720.0,
+        "storageGb": 0.0,
+        "accessFrequency": "low"
+      },
+      "aiExplanation": null,
+      "createdAt": "2026-11-22T07:51:54.481499+00:00",
+      "updatedAt": null
+    },
+    {
+      "recommendationId": "rec-81e33a0bfcc9",
+      "organizationId": "org-demo",
+      "analysisId": "analysis-766b4253fcd0",
+      "category": "OVERSIZED_COMPUTE",
+      "severity": "MEDIUM",
+      "status": "NEW",
+      "resourceId": "i-analytics-001",
+      "resourceType": "large-instance",
+      "service": "EC2",
+      "project": "Analytics",
+      "team": "Data",
+      "issue": "The instance costs $288.00 per period but averages only 20.0% utilization.",
+      "action": "Evaluate a smaller instance type using recent CPU, memory, network, and latency metrics.",
+      "estimatedMonthlySavings": 115.2,
+      "savingsCurrency": "USD",
+      "performanceRisk": "A smaller instance may increase response time or cause resource contention.",
+      "reliabilityRisk": "Insufficient capacity could cause errors during workload peaks.",
+      "verificationStep": "Review peak utilization and load-test a smaller instance before changing production.",
+      "confidence": 0.9,
+      "ruleId": "oversized-ec2-under-25-percent",
+      "evidence": {
+        "monthlyCost": 288.0,
+        "utilizationPercent": 20.0,
+        "usageHours": 720.0,
+        "storageGb": 0.0,
+        "accessFrequency": "medium"
+      },
+      "aiExplanation": null,
+      "createdAt": "2026-11-22T07:51:54.481687+00:00",
+      "updatedAt": null
+    },
+    {
+      "recommendationId": "rec-bae7c4ad805f",
+      "organizationId": "org-demo",
+      "analysisId": "analysis-766b4253fcd0",
+      "category": "RARELY_ACCESSED_STORAGE",
+      "severity": "MEDIUM",
+      "status": "NEW",
+      "resourceId": "bucket-archive-001",
+      "resourceType": "storage",
+      "service": "S3",
+      "project": "Website",
+      "team": "Engineering",
+      "issue": "The storage contains 500.0 GB and is marked as rarely accessed.",
+      "action": "Apply a lifecycle policy or evaluate a lower-cost storage class.",
+      "estimatedMonthlySavings": 22.5,
+      "savingsCurrency": "USD",
+      "performanceRisk": "Retrieval may be slower or incur additional access charges.",
+      "reliabilityRisk": "Incorrect lifecycle rules could make frequently needed data harder to retrieve.",
+      "verificationStep": "Confirm retention, retrieval, and compliance requirements before changing storage class.",
+      "confidence": 0.9,
+      "ruleId": "rare-s3-storage-over-100gb",
+      "evidence": {
+        "monthlyCost": 75.0,
+        "utilizationPercent": 0.0,
+        "usageHours": 0.0,
+        "storageGb": 500.0,
+        "accessFrequency": "rare"
+      },
+      "aiExplanation": null,
+      "createdAt": "2026-11-22T07:51:54.481696+00:00",
+      "updatedAt": null
+    }
+  ],
+  "anomalies": [],
+  "createdAt": "2026-11-22T07:51:54.481742+00:00",
+  "updatedAt": null
+}
