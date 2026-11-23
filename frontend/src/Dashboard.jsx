@@ -41,7 +41,7 @@ function SeverityTag({ severity }) {
   return <span className={`tag tag-${severity.toLowerCase()}`}>{severity}</span>;
 }
 
-export default function Dashboard({ analysis }) {
+export default function Dashboard({ analysis, fileName }) {
   const { summary, currency } = analysis;
   const change = summary.percentChangeFromPreviousPeriod;
   const recommendations = [...analysis.recommendations].sort(
@@ -51,6 +51,7 @@ export default function Dashboard({ analysis }) {
   return (
     <div>
       <p className="muted">
+        {fileName && <>Results for <strong>{fileName}</strong> · </>}
         Billing period {analysis.period.startDate} to {analysis.period.endDate}
       </p>
 

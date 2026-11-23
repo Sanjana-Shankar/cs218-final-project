@@ -29,3 +29,13 @@ details summary { cursor: pointer; color: #2a6fdb; }
 h1 { font-size: 1.5em; margin: 8px 0; }
 h2 { font-size: 1.25em; margin: 24px 0 12px; }
 .wide { grid-column: 1 / -1; }
+
+.upload-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+button { background: #2a6fdb; color: #fff; border: 0; border-radius: 6px; padding: 8px 14px; cursor: pointer; font: inherit; }
+button:disabled { background: #a9bfe6; cursor: not-allowed; }
+.status { display: flex; align-items: center; gap: 8px; margin-bottom: 0; }
+.error { color: #a11d1d; background: #fde2e2; padding: 8px 12px; border-radius: 6px; margin-bottom: 0; }
+.banner { background: #fdf6d8; color: #7a5c00; padding: 8px 12px; border-radius: 6px; }
+.empty { text-align: center; padding: 48px 0; }
+.spinner { width: 14px; height: 14px; border: 2px solid #c9d6ee; border-top-color: #2a6fdb; border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }

@@ -1,5 +1,5 @@
 {
-  "analysisId": "analysis-337313c4f352",
+  "analysisId": "analysis-766b4253fcd0",
   "organizationId": "org-demo",
   "status": "COMPLETED",
   "errorMessage": null,
@@ -117,9 +117,9 @@
   ],
   "recommendations": [
     {
-      "recommendationId": "rec-b6f3afb4e92e",
+      "recommendationId": "rec-c7d40ea83430",
       "organizationId": "org-demo",
-      "analysisId": "analysis-337313c4f352",
+      "analysisId": "analysis-766b4253fcd0",
       "category": "UNDERUTILIZED_GPU",
       "severity": "CRITICAL",
       "status": "NEW",
@@ -145,13 +145,13 @@
         "accessFrequency": "low"
       },
       "aiExplanation": null,
-      "createdAt": "2026-11-20T07:39:17.528801+00:00",
+      "createdAt": "2026-11-22T07:51:54.481701+00:00",
       "updatedAt": null
     },
     {
-      "recommendationId": "rec-e154489840d3",
+      "recommendationId": "rec-73612dece3c4",
       "organizationId": "org-demo",
-      "analysisId": "analysis-337313c4f352",
+      "analysisId": "analysis-766b4253fcd0",
       "category": "IDLE_COMPUTE",
       "severity": "HIGH",
       "status": "NEW",
@@ -177,13 +177,13 @@
         "accessFrequency": "low"
       },
       "aiExplanation": null,
-      "createdAt": "2026-11-20T07:39:17.528547+00:00",
+      "createdAt": "2026-11-22T07:51:54.481499+00:00",
       "updatedAt": null
     },
     {
-      "recommendationId": "rec-9ce5cce4ff30",
+      "recommendationId": "rec-81e33a0bfcc9",
       "organizationId": "org-demo",
-      "analysisId": "analysis-337313c4f352",
+      "analysisId": "analysis-766b4253fcd0",
       "category": "OVERSIZED_COMPUTE",
       "severity": "MEDIUM",
       "status": "NEW",
@@ -209,13 +209,13 @@
         "accessFrequency": "medium"
       },
       "aiExplanation": null,
-      "createdAt": "2026-11-20T07:39:17.528772+00:00",
+      "createdAt": "2026-11-22T07:51:54.481687+00:00",
       "updatedAt": null
     },
     {
-      "recommendationId": "rec-6eb0017c666a",
+      "recommendationId": "rec-bae7c4ad805f",
       "organizationId": "org-demo",
-      "analysisId": "analysis-337313c4f352",
+      "analysisId": "analysis-766b4253fcd0",
       "category": "RARELY_ACCESSED_STORAGE",
       "severity": "MEDIUM",
       "status": "NEW",
@@ -241,11 +241,11 @@
         "accessFrequency": "rare"
       },
       "aiExplanation": null,
-      "createdAt": "2026-11-20T07:39:17.528789+00:00",
+      "createdAt": "2026-11-22T07:51:54.481696+00:00",
       "updatedAt": null
     }
   ],
   "anomalies": [],
-  "createdAt": "2026-11-20T07:39:17.528914+00:00",
+  "createdAt": "2026-11-22T07:51:54.481742+00:00",
   "updatedAt": null
 }
