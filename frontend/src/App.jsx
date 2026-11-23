@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Authenticator } from "@aws-amplify/ui-react";
 import Dashboard from "./Dashboard.jsx";
 import Upload from "./Upload.jsx";
+import Chat from "./Chat.jsx";
 import { usingMocks } from "./api.js";
 
 // Skip sign-in locally until the Cognito values are in .env
@@ -30,7 +31,10 @@ function Shell({ user, signOut }) {
       {usingMocks && <p className="banner">Demo mode: no API configured, showing sample data.</p>}
       <Upload onComplete={showResult} />
       {analysis ? (
-        <Dashboard analysis={analysis} fileName={fileName} />
+        <>
+          <Dashboard analysis={analysis} fileName={fileName} />
+          <Chat analysis={analysis} />
+        </>
       ) : (
         <p className="muted empty">Upload a billing CSV to see your cost breakdown and savings.</p>
       )}
