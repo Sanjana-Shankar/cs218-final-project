@@ -223,8 +223,6 @@ For a very small prototype, `BillingRecords` and `AnalysisResults` may be combin
 ```text
 POST /uploads
 GET  /analyses/{analysisId}
-GET  /recommendations/{analysisId}
-GET  /anomalies/{analysisId}
 POST /chat
 GET  /chat/history
 GET  /health
@@ -465,7 +463,49 @@ The MVP analyzes uploaded billing data and does not directly change cloud resour
 
 Future versions could also use Athena for large-scale billing queries, SNS for notifications, a retrieval-augmented knowledge base for cloud pricing guidance, and historical analyses across multiple uploaded reports.
 
+## Deployment
+
+Prerequisites:
+
+- AWS CLI v2, with credentials that can create the resources in this project (`aws sts get-caller-identity` should succeed)
+- Node.js 18 or newer, and npm
+- One-time Amazon Bedrock access to Claude Haiku 4.5 in `us-west-2`. Anthropic asks for a short use-case form in the Bedrock console. Until that is enabled, explanations and chat still work, using fallback text.
+
+From the repository root:
+
+```bash
+./deploy.sh
+```
+
+The script is safe to re-run; it updates the stacks in place. Expect about 10-20 minutes. It does the following:
+
+1. Deploys the frontend bucket and CloudFront distribution (`cloud-cost-optimizer-frontend`) and reads the site URL.
+2. Creates a private artifact bucket, then packages and deploys the backend (`cloud-cost-optimizer-backend`): Cognito, the upload bucket, four DynamoDB tables, the HTTP API, and the upload, processing, and chatbot Lambdas.
+3. Writes `frontend/.env` from the backend outputs (`VITE_AWS_REGION`, `VITE_COGNITO_USER_POOL_ID`, `VITE_COGNITO_CLIENT_ID`, `VITE_API_BASE_URL`), then builds the site and uploads it.
+
+At the end it prints the site URL and the API URL. A new CloudFront distribution can take another 5-10 minutes before that site URL loads.
+
+To run the frontend on your computer against the deployed backend, after `./deploy.sh` has written `frontend/.env`:
+
+```bash
+cd frontend
+npm ci
+npm run dev -- --port 5174
+```
+
+The API and the upload bucket allow `http://localhost:5174`. Sign up on that page, then upload a CSV.
+
+Optional environment variables: `PROJECT_NAME` (default `cloud-cost-optimizer`), `AWS_REGION` (default `us-west-2`), `BACKEND_STACK`, and `FRONTEND_STACK`.
+
 ## 19. Cleanup
+
+From the repository root, tear the deployment down with:
+
+```bash
+./destroy.sh
+```
+
+The script asks you to type the project name before it deletes anything. Pass `--yes` to skip that prompt. It empties the upload bucket, deletes the backend stack, empties the frontend bucket, and deletes the frontend stack. Pass `--all` to also delete the artifact bucket. Stacks and buckets that are already gone are skipped.
 
 After testing, remove or disable resources that generate charges, including:
 
