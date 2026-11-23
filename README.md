@@ -91,15 +91,13 @@ flowchart LR
     Frontend --> API["API Gateway"]
     API --> Upload["Upload URL Lambda"]
     Upload --> Raw["S3 Raw Billing Bucket"]
-    Raw --> Workflow["Step Functions"]
-    Workflow --> Processing["Processing Lambda"]
-    Processing --> Rules["Rules and Anomaly Lambda"]
-    Rules --> Bedrock["Amazon Bedrock"]
-    Rules --> Results["DynamoDB"]
+    Raw --> Processing["Processing Lambda"]
+    Processing --> Bedrock["Amazon Bedrock"]
+    Processing --> Results["DynamoDB"]
     API --> Results
     API --> Chat["Chatbot Lambda"]
     Chat --> Bedrock
-    Workflow --> Logs["CloudWatch"]
+    Processing --> Logs["CloudWatch"]
     API --> Logs
 ```
 
@@ -112,7 +110,6 @@ flowchart LR
 | Amazon Cognito | Provides user authentication and identity tokens |
 | API Gateway | Exposes authenticated REST endpoints |
 | AWS Lambda | Performs file processing, aggregation, rules, recommendations, and chatbot requests |
-| AWS Step Functions | Coordinates the analysis workflow and retries failed steps |
 | DynamoDB | Stores normalized records, summaries, recommendations, anomalies, and chat history |
 | Amazon Bedrock | Generates plain-language explanations and chatbot answers |
 | Amazon Athena | Optional SQL analysis over billing files stored in S3 |
@@ -138,7 +135,7 @@ flowchart LR
 2. The frontend requests an upload URL from API Gateway.
 3. The upload Lambda returns a short-lived pre-signed S3 URL.
 4. The browser uploads the billing file directly to S3.
-5. The S3 event starts the Step Functions workflow.
+5. The S3 upload event invokes the processing Lambda.
 6. Lambda validates and normalizes the billing records.
 7. Lambda aggregates costs and identifies trends.
 8. Rule-based checks detect anomalies and optimization opportunities.
@@ -224,8 +221,8 @@ For a very small prototype, `BillingRecords` and `AnalysisResults` may be combin
 ## 10. API Endpoints
 
 ```text
-POST /upload-url
-GET  /analysis/{analysisId}
+POST /uploads
+GET  /analyses/{analysisId}
 GET  /recommendations/{analysisId}
 GET  /anomalies/{analysisId}
 POST /chat
@@ -252,12 +249,11 @@ Tasks:
 5. Create API Gateway routes and Cognito authorization.
 6. Create Lambda execution roles using least privilege.
 7. Configure DynamoDB tables and access permissions.
-8. Create the Step Functions state machine skeleton.
-9. Configure CloudWatch log groups and useful log retention.
-10. Configure encryption and KMS where practical.
-11. Create infrastructure-as-code templates using SAM, CDK, or Terraform.
-12. Document deployment, environment variables, and cleanup commands.
-13. Verify that the infrastructure can be deployed from a clean checkout.
+8. Configure CloudWatch log groups and useful log retention.
+9. Configure encryption and KMS where practical.
+10. Create infrastructure-as-code templates using SAM, CDK, or Terraform.
+11. Document deployment, environment variables, and cleanup commands.
+12. Verify that the infrastructure can be deployed from a clean checkout.
 
 **Acceptance criteria:**
 
@@ -361,7 +357,7 @@ Tasks:
 Integrate the workstreams in this order:
 
 1. Workstream 1 creates the shared AWS resources and API contracts.
-2. Workstream 2 connects file processing to S3, Step Functions, and DynamoDB.
+2. Workstream 2 connects file processing to S3 and DynamoDB.
 3. Workstream 3 connects the frontend to authentication and backend endpoints.
 4. Workstream 4 connects Bedrock, completes testing, and prepares the final demonstration.
 
@@ -385,7 +381,7 @@ The teams should agree on request and response JSON formats before implementatio
 - Cognito token is required for protected endpoints.
 - Pre-signed upload URL works.
 - S3 upload starts the processing workflow.
-- Step Functions retries failed steps.
+- Unexpected processing errors are retried by S3, and invalid files are marked FAILED without a retry.
 - Results are stored in DynamoDB.
 - Dashboard retrieves the correct analysis.
 - Chatbot retrieves only the authenticated user's data.
@@ -477,7 +473,6 @@ After testing, remove or disable resources that generate charges, including:
 - CloudFront distributions
 - API Gateway stages
 - Lambda functions
-- Step Functions state machines
 - DynamoDB tables
 - Cognito pools
 - CloudWatch log groups
