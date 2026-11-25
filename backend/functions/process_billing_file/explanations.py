@@ -17,7 +17,10 @@ import os
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_MODEL_ID = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+try:
+    from . import ai_provider
+except ImportError:  # pragma: no cover
+    import ai_provider
 
 EXPLANATION_SYSTEM_PROMPT = """You explain cloud cost findings to people who are not cloud experts.
 
@@ -50,13 +53,11 @@ FIELDS_FOR_MODEL = (
 
 
 def _model_id() -> str:
-    return os.getenv("BEDROCK_MODEL_ID", DEFAULT_MODEL_ID)
+    return ai_provider.model_id()
 
 
 def _bedrock_client():
-    import boto3
-
-    return boto3.client("bedrock-runtime", region_name=os.getenv("AWS_REGION", "us-east-1"))
+    return ai_provider.get_client()
 
 
 def fallback_explanation(recommendation: dict) -> str:

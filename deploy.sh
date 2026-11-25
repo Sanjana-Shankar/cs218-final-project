@@ -9,6 +9,8 @@
 #   AWS_REGION       default us-west-2
 #   BACKEND_STACK    default $PROJECT_NAME-backend
 #   FRONTEND_STACK   default $PROJECT_NAME-frontend
+#   OPENAI_API_KEY   if set, store it in SSM and deploy with OpenAI instead of Bedrock
+#   OPENAI_MODEL     default gpt-4o-mini, passed as OpenAIModel when deploying
 set -euo pipefail
 
 PROJECT_NAME="${PROJECT_NAME:-cloud-cost-optimizer}"
@@ -17,6 +19,37 @@ BACKEND_STACK="${BACKEND_STACK:-$PROJECT_NAME-backend}"
 FRONTEND_STACK="${FRONTEND_STACK:-$PROJECT_NAME-frontend}"
 # Same default as BedrockModelId in backend/infrastructure/template.yaml.
 BEDROCK_MODEL_ID="us.anthropic.claude-haiku-4-5-20251001-v1:0"
+OPENAI_MODEL="${OPENAI_MODEL:-gpt-4o-mini}"
+OPENAI_API_KEY_PARAMETER="${OPENAI_API_KEY_PARAMETER:-/${PROJECT_NAME}/openai-api-key}"
+if [ -n "${OPENAI_API_KEY:-}" ]; then
+  AI_PROVIDER="openai"
+else
+  AI_PROVIDER="bedrock"
+fi
+
+# Temp files that hold the API key. Deleted on exit, including after a failure.
+SECRET_FILES=()
+cleanup_secret_files() {
+  local status=$?
+  local path
+  if [ "${#SECRET_FILES[@]}" -gt 0 ]; then
+    for path in "${SECRET_FILES[@]}"; do
+      rm -f "$path"
+    done
+  fi
+  return "$status"
+}
+trap cleanup_secret_files EXIT
+
+# Sets SECRET_FILE. Must run in the current shell: a command substitution would
+# drop the path from SECRET_FILES, and the exit trap would not delete it.
+make_secret_file() {
+  local path
+  path="$(mktemp)"
+  chmod 600 "$path"
+  SECRET_FILES+=("$path")
+  SECRET_FILE="$path"
+}
 
 cd "$(dirname "$0")"
 
@@ -149,6 +182,18 @@ aws s3api put-bucket-encryption \
   --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
 
 echo "4/8 Packaging and deploying the backend ($BACKEND_STACK)..."
+if [ "$AI_PROVIDER" = "openai" ]; then
+  echo "Storing the OpenAI API key in SSM parameter ${OPENAI_API_KEY_PARAMETER}."
+  make_secret_file
+  printf '%s' "$OPENAI_API_KEY" > "$SECRET_FILE"
+  aws ssm put-parameter \
+    --region "$AWS_REGION" \
+    --name "$OPENAI_API_KEY_PARAMETER" \
+    --type SecureString \
+    --value "file://${SECRET_FILE}" \
+    --overwrite >/dev/null
+  rm -f "$SECRET_FILE"
+fi
 prepare_stack "$BACKEND_STACK"
 if ! aws cloudformation package \
     --region "$AWS_REGION" \
@@ -161,7 +206,12 @@ fi
 deploy_stack "$BACKEND_STACK" \
   --template-file backend/infrastructure/.packaged.yaml \
   --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND \
-  --parameter-overrides "ProjectName=${PROJECT_NAME}" "FrontendUrl=${FRONTEND_URL}" \
+  --parameter-overrides \
+    "ProjectName=${PROJECT_NAME}" \
+    "FrontendUrl=${FRONTEND_URL}" \
+    "AiProvider=${AI_PROVIDER}" \
+    "OpenAIModel=${OPENAI_MODEL}" \
+    "OpenAIApiKeyParameterName=${OPENAI_API_KEY_PARAMETER}" \
   --no-fail-on-empty-changeset
 
 API_URL="$(stack_output "$BACKEND_STACK" ApiUrl)"
@@ -205,7 +255,18 @@ else
   echo "Warning: GET /analyses/test without a token returned $auth_code, expected 401." >&2
 fi
 
-if ! aws bedrock-runtime converse \
+if [ "$AI_PROVIDER" = "openai" ]; then
+  make_secret_file
+  hdrfile="$SECRET_FILE"
+  printf 'Authorization: Bearer %s\n' "$OPENAI_API_KEY" > "$hdrfile"
+  openai_code="$(curl -sS -o /dev/null -w "%{http_code}" -H @"$hdrfile" "https://api.openai.com/v1/models" || true)"
+  rm -f "$hdrfile"
+  if [ "$openai_code" != "200" ]; then
+    echo "Warning: OpenAI API check returned ${openai_code:-no response}. The app still works with fallback text until the key can call the API." >&2
+  else
+    echo "OpenAI API accepted the key."
+  fi
+elif ! aws bedrock-runtime converse \
     --region "$AWS_REGION" \
     --model-id "$BEDROCK_MODEL_ID" \
     --messages '[{"role":"user","content":[{"text":"Reply with OK"}]}]' \
@@ -216,6 +277,7 @@ fi
 echo "8/8 Summary"
 echo "Site: $FRONTEND_URL"
 echo "API:  $API_URL"
+echo "AI provider: $AI_PROVIDER"
 echo "A new CloudFront distribution can take 5-10 minutes before the site loads."
 echo "Manual test:"
 echo "  1. Open the site, sign up, and sign in."

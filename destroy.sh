@@ -6,13 +6,15 @@
 #   ./destroy.sh --all     also delete the artifact bucket
 #   ./destroy.sh --yes --all
 #
-# Missing stacks and buckets are skipped, so a partial deploy can still be cleaned up.
+# Missing stacks, buckets, and the OpenAI API key parameter are skipped, so a
+# partial deploy can still be cleaned up.
 set -euo pipefail
 
 PROJECT_NAME="${PROJECT_NAME:-cloud-cost-optimizer}"
 AWS_REGION="${AWS_REGION:-us-west-2}"
 BACKEND_STACK="${BACKEND_STACK:-$PROJECT_NAME-backend}"
 FRONTEND_STACK="${FRONTEND_STACK:-$PROJECT_NAME-frontend}"
+OPENAI_API_KEY_PARAMETER="${OPENAI_API_KEY_PARAMETER:-/${PROJECT_NAME}/openai-api-key}"
 
 YES=0
 ALL=0
@@ -121,7 +123,7 @@ delete_stack() {
   echo "Deleted $name."
 }
 
-echo "1/4 Emptying the upload bucket and deleting $BACKEND_STACK ..."
+echo "1/5 Emptying the upload bucket and deleting $BACKEND_STACK ..."
 UPLOAD_BUCKET="$(stack_output "$BACKEND_STACK" UploadBucketName)"
 if [ -z "$UPLOAD_BUCKET" ]; then
   UPLOAD_BUCKET="${PROJECT_NAME}-uploads-${ACCOUNT}-${AWS_REGION}"
@@ -129,13 +131,13 @@ fi
 empty_bucket "$UPLOAD_BUCKET"
 delete_stack "$BACKEND_STACK"
 
-echo "2/4 Emptying the frontend bucket and deleting $FRONTEND_STACK ..."
+echo "2/5 Emptying the frontend bucket and deleting $FRONTEND_STACK ..."
 FRONTEND_BUCKET="$(stack_output "$FRONTEND_STACK" BucketName)"
 empty_bucket "$FRONTEND_BUCKET"
 delete_stack "$FRONTEND_STACK"
 
 if [ "$ALL" -eq 1 ]; then
-  echo "3/4 Deleting the artifact bucket..."
+  echo "3/5 Deleting the artifact bucket..."
   ARTIFACT_BUCKET="${PROJECT_NAME}-artifacts-${ACCOUNT}-${AWS_REGION}"
   if bucket_exists "$ARTIFACT_BUCKET"; then
     echo "Emptying s3://$ARTIFACT_BUCKET ..."
@@ -146,8 +148,24 @@ if [ "$ALL" -eq 1 ]; then
     echo "Artifact bucket $ARTIFACT_BUCKET does not exist; skipping."
   fi
 else
-  echo "3/4 Leaving the artifact bucket in place. Re-run with --all to delete it."
+  echo "3/5 Leaving the artifact bucket in place. Re-run with --all to delete it."
 fi
 
-echo "4/4 Done."
+echo "4/5 Deleting the OpenAI API key parameter if it exists..."
+ssm_err="$(mktemp)"
+if aws ssm delete-parameter \
+    --region "$AWS_REGION" \
+    --name "$OPENAI_API_KEY_PARAMETER" 2>"$ssm_err"; then
+  rm -f "$ssm_err"
+  echo "Deleted SSM parameter $OPENAI_API_KEY_PARAMETER."
+elif grep -q ParameterNotFound "$ssm_err"; then
+  rm -f "$ssm_err"
+  echo "SSM parameter $OPENAI_API_KEY_PARAMETER does not exist; skipping."
+else
+  cat "$ssm_err" >&2
+  rm -f "$ssm_err"
+  die "Could not delete SSM parameter $OPENAI_API_KEY_PARAMETER."
+fi
+
+echo "5/5 Done."
 echo "Check Billing and Cost Management tomorrow to confirm charges have stopped."
