@@ -112,8 +112,17 @@ def _s3_client(s3_client):
     if s3_client is not None:
         return s3_client
     import boto3
+    from botocore.config import Config
 
-    return boto3.client("s3", region_name=os.getenv("AWS_REGION"))
+    # SigV4 against the regional virtual-host endpoint. The default client
+    # signs a URL on bucket.s3.amazonaws.com, and a browser PUT there is
+    # answered with a 307 that has no CORS headers, so fetch fails.
+    region = os.getenv("AWS_REGION") or "us-west-2"
+    return boto3.client(
+        "s3",
+        region_name=region,
+        config=Config(signature_version="s3v4", s3={"addressing_style": "virtual"}),
+    )
 
 
 def _analysis_table(table):
