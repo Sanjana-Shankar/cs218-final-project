@@ -12,11 +12,13 @@
 set -euo pipefail
 
 PROJECT_NAME="${PROJECT_NAME:-cloud-cost-optimizer}"
-AWS_REGION="${AWS_REGION:-us-west-2}"
+#AWS_REGION="${AWS_REGION:-us-west-2}"
+AWS_REGION="${AWS_REGION:-us-east-1}"
 BACKEND_STACK="${BACKEND_STACK:-$PROJECT_NAME-backend}"
 FRONTEND_STACK="${FRONTEND_STACK:-$PROJECT_NAME-frontend}"
+BEDROCK_MODEL_ID="${BEDROCK_MODEL_ID:-amazon.nova-lite-v1:0}"
 # Same default as BedrockModelId in backend/infrastructure/template.yaml.
-BEDROCK_MODEL_ID="us.anthropic.claude-haiku-4-5-20251001-v1:0"
+#BEDROCK_MODEL_ID="us.anthropic.claude-haiku-4-5-20251001-v1:0"
 
 cd "$(dirname "$0")"
 
@@ -161,7 +163,10 @@ fi
 deploy_stack "$BACKEND_STACK" \
   --template-file backend/infrastructure/.packaged.yaml \
   --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND \
-  --parameter-overrides "ProjectName=${PROJECT_NAME}" "FrontendUrl=${FRONTEND_URL}" \
+  --parameter-overrides \
+  "ProjectName=${PROJECT_NAME}" \
+  "FrontendUrl=${FRONTEND_URL}" \
+  "BedrockModelId=${BEDROCK_MODEL_ID}" \
   --no-fail-on-empty-changeset
 
 API_URL="$(stack_output "$BACKEND_STACK" ApiUrl)"
