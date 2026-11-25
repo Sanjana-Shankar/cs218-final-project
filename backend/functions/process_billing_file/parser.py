@@ -8,7 +8,10 @@ from datetime import date
 from pathlib import Path
 from typing import Iterable, Mapping
 
-from .errors import BillingValidationError
+try:
+    from .errors import BillingValidationError
+except ImportError:  # pragma: no cover
+    from errors import BillingValidationError
 
 REQUIRED_COLUMNS = {
     "organizationId",
@@ -75,6 +78,15 @@ def parse_billing_rows(rows: Iterable[Mapping[str, str]]) -> list[dict]:
     for row_number, row in enumerate(rows, start=2):
         if not row:
             raise BillingValidationError(f"Row {row_number}: empty row.")
+
+        missing = sorted(
+            field for field in REQUIRED_COLUMNS if not (row.get(field) or "").strip()
+        )
+        if missing:
+            names = ", ".join(missing)
+            raise BillingValidationError(
+                f"Row {row_number}: missing required fields: {names}."
+            )
 
         organization_id = _required_text(row, "organizationId", row_number)
         usage_date_raw = _required_text(row, "usageDate", row_number)

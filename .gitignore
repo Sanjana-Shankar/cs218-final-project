@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+
+# Default output of the billing CLI
+analysis_output.json
+
+# CloudFormation package output from deploy.sh, and sam build
+backend/infrastructure/.packaged.yaml
+.aws-sam/
+
+# macOS
+.DS_Store

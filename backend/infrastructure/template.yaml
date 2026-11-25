@@ -1,0 +1,367 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Cloud Cost Optimizer backend - Cognito, upload bucket, DynamoDB, HTTP API, and three Lambdas
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: cloud-cost-optimizer
+  FrontendUrl:
+    Type: String
+    Description: CloudFront URL of the frontend, with no trailing slash
+  BedrockModelId:
+    Type: String
+    Default: us.anthropic.claude-haiku-4-5-20251001-v1:0
+  BedrockFoundationModelId:
+    Type: String
+    Default: anthropic.claude-haiku-4-5-20251001-v1:0
+
+Globals:
+  Function:
+    Runtime: python3.12
+    MemorySize: 256
+    Handler: handler.lambda_handler
+
+Resources:
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub "${ProjectName}-users"
+      UsernameAttributes:
+        - email
+      AutoVerifiedAttributes:
+        - email
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_email
+            Priority: 1
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireLowercase: true
+          RequireUppercase: true
+          RequireNumbers: true
+          RequireSymbols: false
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref UserPool
+      ClientName: !Sub "${ProjectName}-web"
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      PreventUserExistenceErrors: ENABLED
+
+  # Bucket name is repeated as a string in IAM and Lambda env vars. The processing
+  # function's S3 event references this bucket, and a !Ref or !GetAtt from the
+  # function role back to the bucket makes a circular dependency.
+  UploadBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${ProjectName}-uploads-${AWS::AccountId}-${AWS::Region}"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireUploads
+            Status: Enabled
+            Prefix: uploads/
+            ExpirationInDays: 7
+      CorsConfiguration:
+        CorsRules:
+          - AllowedMethods:
+              - PUT
+            AllowedHeaders:
+              - Content-Type
+            AllowedOrigins:
+              - !Ref FrontendUrl
+              - "http://localhost:5174"
+            MaxAge: 3000
+
+  BillingRecordsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: organizationId
+          AttributeType: S
+        - AttributeName: recordId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: organizationId
+          KeyType: HASH
+        - AttributeName: recordId
+          KeyType: RANGE
+
+  AnalysisResultsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: organizationId
+          AttributeType: S
+        - AttributeName: analysisId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: organizationId
+          KeyType: HASH
+        - AttributeName: analysisId
+          KeyType: RANGE
+
+  RecommendationsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: organizationId
+          AttributeType: S
+        - AttributeName: recommendationId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: organizationId
+          KeyType: HASH
+        - AttributeName: recommendationId
+          KeyType: RANGE
+
+  ChatHistoryTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: organizationId
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: S
+      KeySchema:
+        - AttributeName: organizationId
+          KeyType: HASH
+        - AttributeName: timestamp
+          KeyType: RANGE
+
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: "$default"
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 50
+        ThrottlingRateLimit: 20
+      Auth:
+        DefaultAuthorizer: CognitoJwt
+        Authorizers:
+          CognitoJwt:
+            IdentitySource: "$request.header.Authorization"
+            JwtConfiguration:
+              issuer: !Sub "https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}"
+              audience:
+                - !Ref UserPoolClient
+      CorsConfiguration:
+        AllowOrigins:
+          - !Ref FrontendUrl
+          - "http://localhost:5174"
+        AllowHeaders:
+          - Authorization
+          - Content-Type
+        AllowMethods:
+          - GET
+          - POST
+          - OPTIONS
+        MaxAge: 600
+
+  UploadFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: 14
+
+  ProcessingFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: 14
+
+  ChatbotFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: 14
+
+  UploadFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../functions/upload_url
+      Timeout: 10
+      LoggingConfig:
+        LogGroup: !Ref UploadFunctionLogGroup
+      Environment:
+        Variables:
+          UPLOAD_BUCKET: !Sub "${ProjectName}-uploads-${AWS::AccountId}-${AWS::Region}"
+          ANALYSIS_RESULTS_TABLE: !Ref AnalysisResultsTable
+          CORS_ORIGIN: !Ref FrontendUrl
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: s3:PutObject
+              Resource: !Sub "arn:aws:s3:::${ProjectName}-uploads-${AWS::AccountId}-${AWS::Region}/uploads/*"
+            - Effect: Allow
+              Action: dynamodb:PutItem
+              Resource: !GetAtt AnalysisResultsTable.Arn
+      Events:
+        PostUploads:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Method: POST
+            Path: /uploads
+            PayloadFormatVersion: "2.0"
+            Auth:
+              Authorizer: CognitoJwt
+
+  ProcessingFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../functions/process_billing_file
+      Timeout: 120
+      MemorySize: 512
+      LoggingConfig:
+        LogGroup: !Ref ProcessingFunctionLogGroup
+      Environment:
+        Variables:
+          ANALYSIS_RESULTS_TABLE: !Ref AnalysisResultsTable
+          BILLING_RECORDS_TABLE: !Ref BillingRecordsTable
+          RECOMMENDATIONS_TABLE: !Ref RecommendationsTable
+          CORS_ORIGIN: !Ref FrontendUrl
+          BEDROCK_MODEL_ID: !Ref BedrockModelId
+          ENABLE_AI_EXPLANATIONS: "true"
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: s3:GetObject
+              Resource: !Sub "arn:aws:s3:::${ProjectName}-uploads-${AWS::AccountId}-${AWS::Region}/uploads/*"
+            - Effect: Allow
+              Action:
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
+                - dynamodb:GetItem
+              Resource: !GetAtt AnalysisResultsTable.Arn
+            - Effect: Allow
+              Action: dynamodb:PutItem
+              Resource: !GetAtt BillingRecordsTable.Arn
+            - Effect: Allow
+              Action:
+                - dynamodb:PutItem
+                - dynamodb:Query
+              Resource: !GetAtt RecommendationsTable.Arn
+            - Effect: Allow
+              Action: bedrock:InvokeModel
+              Resource:
+                - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/${BedrockModelId}"
+                - !Sub "arn:aws:bedrock:*::foundation-model/${BedrockFoundationModelId}"
+      Events:
+        UploadCreated:
+          Type: S3
+          Properties:
+            Bucket: !Ref UploadBucket
+            Events: s3:ObjectCreated:*
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: uploads/
+                  - Name: suffix
+                    Value: .csv
+        GetAnalysis:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Method: GET
+            Path: /analyses/{analysisId}
+            PayloadFormatVersion: "2.0"
+            Auth:
+              Authorizer: CognitoJwt
+        GetHealth:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Method: GET
+            Path: /health
+            PayloadFormatVersion: "2.0"
+            Auth:
+              Authorizer: NONE
+
+  ChatbotFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../functions/chatbot
+      Timeout: 30
+      LoggingConfig:
+        LogGroup: !Ref ChatbotFunctionLogGroup
+      Environment:
+        Variables:
+          ANALYSIS_RESULTS_TABLE: !Ref AnalysisResultsTable
+          RECOMMENDATIONS_TABLE: !Ref RecommendationsTable
+          CHAT_HISTORY_TABLE: !Ref ChatHistoryTable
+          BEDROCK_MODEL_ID: !Ref BedrockModelId
+          CORS_ORIGIN: !Ref FrontendUrl
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:Query
+              Resource:
+                - !GetAtt AnalysisResultsTable.Arn
+                - !GetAtt RecommendationsTable.Arn
+            - Effect: Allow
+              Action:
+                - dynamodb:Query
+                - dynamodb:PutItem
+              Resource: !GetAtt ChatHistoryTable.Arn
+            - Effect: Allow
+              Action: bedrock:InvokeModel
+              Resource:
+                - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/${BedrockModelId}"
+                - !Sub "arn:aws:bedrock:*::foundation-model/${BedrockFoundationModelId}"
+      Events:
+        PostChat:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Method: POST
+            Path: /chat
+            PayloadFormatVersion: "2.0"
+            Auth:
+              Authorizer: CognitoJwt
+        GetChatHistory:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Method: GET
+            Path: /chat/history
+            PayloadFormatVersion: "2.0"
+            Auth:
+              Authorizer: CognitoJwt
+
+Outputs:
+  Region:
+    Description: Region the backend was deployed to
+    Value: !Ref AWS::Region
+  ApiUrl:
+    Description: HTTP API base URL with no trailing slash
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+  UserPoolId:
+    Description: Cognito user pool id
+    Value: !Ref UserPool
+  UserPoolClientId:
+    Description: Cognito app client id (no secret)
+    Value: !Ref UserPoolClient
+  UploadBucketName:
+    Description: Private bucket that receives billing CSV uploads
+    Value: !Sub "${ProjectName}-uploads-${AWS::AccountId}-${AWS::Region}"

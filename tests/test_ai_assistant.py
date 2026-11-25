@@ -16,10 +16,12 @@ import pytest
 
 from backend.functions.chatbot import chat
 from backend.functions.chatbot.handler import lambda_handler
+from backend.functions.process_billing_file.analytics import analyze_records
 from backend.functions.process_billing_file.explanations import add_explanations, explain_recommendation
+from backend.functions.process_billing_file.parser import load_billing_csv
 
 ROOT = Path(__file__).resolve().parents[1]
-ANALYSIS = json.loads((ROOT / "analysis_output.json").read_text())
+ANALYSIS = analyze_records(load_billing_csv(ROOT / "data" / "sample_billing.csv"))
 
 
 # ---------- fakes ----------

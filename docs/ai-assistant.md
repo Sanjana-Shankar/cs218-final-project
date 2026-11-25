@@ -34,7 +34,7 @@ Billing CSV
 
 - Amazon Bedrock, **Claude Haiku 4.5**, US cross-region inference profile
 - Model ID: `us.anthropic.claude-haiku-4-5-20251001-v1:0` (override with the `BEDROCK_MODEL_ID` environment variable)
-- Region: `us-east-1`
+- Region: `us-west-2`
 - Chosen because it is fast (about 1 second per answer) and low-cost, which suits short explanations and chat.
 - The AWS account that runs the project must complete Anthropic's one-time use case form in the Bedrock console before the model can be called.
 
@@ -129,6 +129,8 @@ Optional query parameter: `?conversationId=conv-...`. Returns `{"items": [...]}`
 
 ## What deployment needs (for Workstream 1)
 
+`backend/infrastructure/template.yaml` implements this section. `./deploy.sh` deploys it.
+
 **DynamoDB table:** `ChatHistory`, partition key `organizationId` (String), sort key `timestamp` (String). The code writes timestamps like `2026-11-22T20:00:00+00:00#a1b2c3` so two messages never collide.
 
 **Chatbot Lambda:**
@@ -162,7 +164,7 @@ Bedrock invoke policy (replace `ACCOUNT_ID`). The US inference profile can route
   "Effect": "Allow",
   "Action": "bedrock:InvokeModel",
   "Resource": [
-    "arn:aws:bedrock:us-east-1:ACCOUNT_ID:inference-profile/us.anthropic.claude-haiku-4-5-20251001-v1:0",
+    "arn:aws:bedrock:us-west-2:ACCOUNT_ID:inference-profile/us.anthropic.claude-haiku-4-5-20251001-v1:0",
     "arn:aws:bedrock:*::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0"
   ]
 }

@@ -1,11 +1,26 @@
 """Optional DynamoDB persistence used by the deployed Lambda functions."""
-# Provides local in-memory storage and DynamoDB storage 
+# Provides local in-memory storage and DynamoDB storage
 
 from __future__ import annotations
 
 import json
 import os
+from datetime import datetime, timezone
+from decimal import Decimal
 from typing import Any
+
+
+def dynamodb_safe(value: Any) -> Any:
+    """Return a copy of ``value`` that DynamoDB can store.
+
+    boto3 rejects Python floats. A JSON round trip with ``parse_float=Decimal``
+    converts every float and leaves strings, ints, bools, and nulls unchanged.
+    """
+    return json.loads(json.dumps(value), parse_float=Decimal)
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
 
 class InMemoryRepository:
@@ -23,8 +38,33 @@ class InMemoryRepository:
         key = (analysis["organizationId"], analysis["analysisId"])
         self.analyses[key] = analysis
 
+    def save_status(
+        self,
+        organization_id: str,
+        analysis_id: str,
+        status: str,
+        error_message: str | None = None,
+    ) -> None:
+        """Merge a status update. ``createdAt`` is set only when it is missing."""
+        now = _now()
+        key = (organization_id, analysis_id)
+        existing = self.analyses.get(key)
+        if existing is None:
+            existing = {"organizationId": organization_id, "analysisId": analysis_id}
+            self.analyses[key] = existing
+        existing["status"] = status
+        existing["errorMessage"] = error_message
+        existing["updatedAt"] = now
+        if not existing.get("createdAt"):
+            existing["createdAt"] = now
+
     def get_analysis(self, organization_id: str, analysis_id: str) -> dict | None:
-        return self.analyses.get((organization_id, analysis_id))
+        item = self.analyses.get((organization_id, analysis_id))
+        if item is None:
+            return None
+        if "recommendations" not in item:
+            return {**item, "recommendations": []}
+        return item
 
 
 class DynamoRepository:
@@ -50,13 +90,14 @@ class DynamoRepository:
             item = dict(record)
             item["recordId"] = f"{analysis_id}-{index + 1:06d}"
             item["analysisId"] = analysis_id
-            self.billing_table.put_item(Item=item)
+            self.billing_table.put_item(Item=dynamodb_safe(item))
 
     def save_analysis(self, analysis: dict) -> None:
         item = {
             "organizationId": analysis["organizationId"],
             "analysisId": analysis["analysisId"],
             "status": analysis["status"],
+            "errorMessage": analysis.get("errorMessage"),
             "currency": analysis["currency"],
             "period": analysis["period"],
             "summary": analysis["summary"],
@@ -69,9 +110,33 @@ class DynamoRepository:
             "createdAt": analysis["createdAt"],
             "updatedAt": analysis.get("updatedAt"),
         }
-        self.analysis_table.put_item(Item=item)
+        self.analysis_table.put_item(Item=dynamodb_safe(item))
         for recommendation in analysis["recommendations"]:
-            self.recommendation_table.put_item(Item=recommendation)
+            self.recommendation_table.put_item(Item=dynamodb_safe(recommendation))
+
+    def save_status(
+        self,
+        organization_id: str,
+        analysis_id: str,
+        status: str,
+        error_message: str | None = None,
+    ) -> None:
+        """Set status fields. ``createdAt`` is written only if the item does not have one."""
+        now = _now()
+        self.analysis_table.update_item(
+            Key={"organizationId": organization_id, "analysisId": analysis_id},
+            UpdateExpression=(
+                "SET #status = :status, errorMessage = :errorMessage, "
+                "updatedAt = :updatedAt, createdAt = if_not_exists(createdAt, :createdAt)"
+            ),
+            ExpressionAttributeNames={"#status": "status"},
+            ExpressionAttributeValues={
+                ":status": status,
+                ":errorMessage": error_message,
+                ":updatedAt": now,
+                ":createdAt": now,
+            },
+        )
 
     def get_analysis(self, organization_id: str, analysis_id: str) -> dict | None:
         response = self.analysis_table.get_item(
@@ -87,6 +152,7 @@ class DynamoRepository:
         recommendations = [
             rec for rec in recommendation_response.get("Items", []) if rec.get("analysisId") == analysis_id
         ]
+        # Status-only items (QUEUED, PROCESSING, FAILED) have no recommendation rows.
         item["recommendations"] = recommendations
         return item
 

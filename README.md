@@ -91,15 +91,13 @@ flowchart LR
     Frontend --> API["API Gateway"]
     API --> Upload["Upload URL Lambda"]
     Upload --> Raw["S3 Raw Billing Bucket"]
-    Raw --> Workflow["Step Functions"]
-    Workflow --> Processing["Processing Lambda"]
-    Processing --> Rules["Rules and Anomaly Lambda"]
-    Rules --> Bedrock["Amazon Bedrock"]
-    Rules --> Results["DynamoDB"]
+    Raw --> Processing["Processing Lambda"]
+    Processing --> Bedrock["Amazon Bedrock"]
+    Processing --> Results["DynamoDB"]
     API --> Results
     API --> Chat["Chatbot Lambda"]
     Chat --> Bedrock
-    Workflow --> Logs["CloudWatch"]
+    Processing --> Logs["CloudWatch"]
     API --> Logs
 ```
 
@@ -112,7 +110,6 @@ flowchart LR
 | Amazon Cognito | Provides user authentication and identity tokens |
 | API Gateway | Exposes authenticated REST endpoints |
 | AWS Lambda | Performs file processing, aggregation, rules, recommendations, and chatbot requests |
-| AWS Step Functions | Coordinates the analysis workflow and retries failed steps |
 | DynamoDB | Stores normalized records, summaries, recommendations, anomalies, and chat history |
 | Amazon Bedrock | Generates plain-language explanations and chatbot answers |
 | Amazon Athena | Optional SQL analysis over billing files stored in S3 |
@@ -138,7 +135,7 @@ flowchart LR
 2. The frontend requests an upload URL from API Gateway.
 3. The upload Lambda returns a short-lived pre-signed S3 URL.
 4. The browser uploads the billing file directly to S3.
-5. The S3 event starts the Step Functions workflow.
+5. The S3 upload event invokes the processing Lambda.
 6. Lambda validates and normalizes the billing records.
 7. Lambda aggregates costs and identifies trends.
 8. Rule-based checks detect anomalies and optimization opportunities.
@@ -224,10 +221,8 @@ For a very small prototype, `BillingRecords` and `AnalysisResults` may be combin
 ## 10. API Endpoints
 
 ```text
-POST /upload-url
-GET  /analysis/{analysisId}
-GET  /recommendations/{analysisId}
-GET  /anomalies/{analysisId}
+POST /uploads
+GET  /analyses/{analysisId}
 POST /chat
 GET  /chat/history
 GET  /health
@@ -252,12 +247,11 @@ Tasks:
 5. Create API Gateway routes and Cognito authorization.
 6. Create Lambda execution roles using least privilege.
 7. Configure DynamoDB tables and access permissions.
-8. Create the Step Functions state machine skeleton.
-9. Configure CloudWatch log groups and useful log retention.
-10. Configure encryption and KMS where practical.
-11. Create infrastructure-as-code templates using SAM, CDK, or Terraform.
-12. Document deployment, environment variables, and cleanup commands.
-13. Verify that the infrastructure can be deployed from a clean checkout.
+8. Configure CloudWatch log groups and useful log retention.
+9. Configure encryption and KMS where practical.
+10. Create infrastructure-as-code templates using SAM, CDK, or Terraform.
+11. Document deployment, environment variables, and cleanup commands.
+12. Verify that the infrastructure can be deployed from a clean checkout.
 
 **Acceptance criteria:**
 
@@ -361,7 +355,7 @@ Tasks:
 Integrate the workstreams in this order:
 
 1. Workstream 1 creates the shared AWS resources and API contracts.
-2. Workstream 2 connects file processing to S3, Step Functions, and DynamoDB.
+2. Workstream 2 connects file processing to S3 and DynamoDB.
 3. Workstream 3 connects the frontend to authentication and backend endpoints.
 4. Workstream 4 connects Bedrock, completes testing, and prepares the final demonstration.
 
@@ -385,7 +379,7 @@ The teams should agree on request and response JSON formats before implementatio
 - Cognito token is required for protected endpoints.
 - Pre-signed upload URL works.
 - S3 upload starts the processing workflow.
-- Step Functions retries failed steps.
+- Unexpected processing errors are retried by S3, and invalid files are marked FAILED without a retry.
 - Results are stored in DynamoDB.
 - Dashboard retrieves the correct analysis.
 - Chatbot retrieves only the authenticated user's data.
@@ -469,7 +463,49 @@ The MVP analyzes uploaded billing data and does not directly change cloud resour
 
 Future versions could also use Athena for large-scale billing queries, SNS for notifications, a retrieval-augmented knowledge base for cloud pricing guidance, and historical analyses across multiple uploaded reports.
 
+## Deployment
+
+Prerequisites:
+
+- AWS CLI v2, with credentials that can create the resources in this project (`aws sts get-caller-identity` should succeed)
+- Node.js 18 or newer, and npm
+- One-time Amazon Bedrock access to Claude Haiku 4.5 in `us-west-2`. Anthropic asks for a short use-case form in the Bedrock console. Until that is enabled, explanations and chat still work, using fallback text.
+
+From the repository root:
+
+```bash
+./deploy.sh
+```
+
+The script is safe to re-run; it updates the stacks in place. Expect about 10-20 minutes. It does the following:
+
+1. Deploys the frontend bucket and CloudFront distribution (`cloud-cost-optimizer-frontend`) and reads the site URL.
+2. Creates a private artifact bucket, then packages and deploys the backend (`cloud-cost-optimizer-backend`): Cognito, the upload bucket, four DynamoDB tables, the HTTP API, and the upload, processing, and chatbot Lambdas.
+3. Writes `frontend/.env` from the backend outputs (`VITE_AWS_REGION`, `VITE_COGNITO_USER_POOL_ID`, `VITE_COGNITO_CLIENT_ID`, `VITE_API_BASE_URL`), then builds the site and uploads it.
+
+At the end it prints the site URL and the API URL. A new CloudFront distribution can take another 5-10 minutes before that site URL loads.
+
+To run the frontend on your computer against the deployed backend, after `./deploy.sh` has written `frontend/.env`:
+
+```bash
+cd frontend
+npm ci
+npm run dev -- --port 5174
+```
+
+The API and the upload bucket allow `http://localhost:5174`. Sign up on that page, then upload a CSV.
+
+Optional environment variables: `PROJECT_NAME` (default `cloud-cost-optimizer`), `AWS_REGION` (default `us-west-2`), `BACKEND_STACK`, and `FRONTEND_STACK`.
+
 ## 19. Cleanup
+
+From the repository root, tear the deployment down with:
+
+```bash
+./destroy.sh
+```
+
+The script asks you to type the project name before it deletes anything. Pass `--yes` to skip that prompt. It empties the upload bucket, deletes the backend stack, empties the frontend bucket, and deletes the frontend stack. Pass `--all` to also delete the artifact bucket. Stacks and buckets that are already gone are skipped.
 
 After testing, remove or disable resources that generate charges, including:
 
@@ -477,7 +513,6 @@ After testing, remove or disable resources that generate charges, including:
 - CloudFront distributions
 - API Gateway stages
 - Lambda functions
-- Step Functions state machines
 - DynamoDB tables
 - Cognito pools
 - CloudWatch log groups
