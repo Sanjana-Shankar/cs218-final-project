@@ -497,6 +497,22 @@ The API and the upload bucket allow `http://localhost:5174`. Sign up on that pag
 
 Optional environment variables: `PROJECT_NAME` (default `cloud-cost-optimizer`), `AWS_REGION` (default `us-west-2`), `BACKEND_STACK`, and `FRONTEND_STACK`.
 
+### Testing without Bedrock
+
+Bedrock model access can take time to approve. To test explanations and chat with OpenAI instead, set a key without saving it in shell history, then deploy. Nothing is shown while you type the key:
+
+```bash
+read -rs OPENAI_API_KEY && export OPENAI_API_KEY
+./deploy.sh
+```
+
+Billing summaries are sent to OpenAI in this mode, so use sample data only. Optional: `OPENAI_MODEL` (default `gpt-4o-mini`). Unset the variable and redeploy to switch back to Bedrock:
+
+```bash
+unset OPENAI_API_KEY
+./deploy.sh
+```
+
 ## 19. Cleanup
 
 From the repository root, tear the deployment down with:
@@ -505,7 +521,7 @@ From the repository root, tear the deployment down with:
 ./destroy.sh
 ```
 
-The script asks you to type the project name before it deletes anything. Pass `--yes` to skip that prompt. It empties the upload bucket, deletes the backend stack, empties the frontend bucket, and deletes the frontend stack. Pass `--all` to also delete the artifact bucket. Stacks and buckets that are already gone are skipped.
+The script asks you to type the project name before it deletes anything. Pass `--yes` to skip that prompt. It empties the upload bucket, deletes the backend stack, empties the frontend bucket, and deletes the frontend stack. Pass `--all` to also delete the artifact bucket. It also deletes the OpenAI API key SSM parameter if that parameter exists. Stacks, buckets, and a missing parameter are skipped.
 
 After testing, remove or disable resources that generate charges, including:
 

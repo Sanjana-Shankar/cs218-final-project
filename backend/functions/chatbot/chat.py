@@ -9,15 +9,18 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import re
 import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
 
+try:
+    from . import ai_provider
+except ImportError:  # pragma: no cover
+    import ai_provider
+
 logger = logging.getLogger(__name__)
 
-DEFAULT_MODEL_ID = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
 MIN_QUESTION_LENGTH = 3      # matches data/chat_request.json
 MAX_QUESTION_LENGTH = 2000   # matches data/chat_request.json
 MAX_HISTORY_MESSAGES = 6     # past messages resent to the model (keeps cost low)
@@ -156,7 +159,6 @@ def answer_question(
     question = validate_question(question)
     context = build_context(analysis)
     context_text = json.dumps(context, indent=2)
-    model_id = os.getenv("BEDROCK_MODEL_ID", DEFAULT_MODEL_ID)
 
     messages = []
     for turn in (history or [])[-(MAX_HISTORY_MESSAGES // 2):]:
@@ -164,12 +166,12 @@ def answer_question(
         messages.append({"role": "assistant", "content": [{"text": turn["answer"]}]})
     messages.append({"role": "user", "content": [{"text": question}]})
 
-    model_used = model_id
+    model_used = None
     try:
+        model_id = ai_provider.model_id()
+        model_used = model_id
         if client is None:
-            import boto3
-
-            client = boto3.client("bedrock-runtime", region_name=os.getenv("AWS_REGION", "us-east-1"))
+            client = ai_provider.get_client()
         response = client.converse(
             modelId=model_id,
             system=[{"text": CHAT_SYSTEM_PROMPT + context_text}],
@@ -191,7 +193,7 @@ def answer_question(
             confidence = 0.9
             disclaimer = DISCLAIMER
     except Exception:
-        logger.exception("Bedrock chat call failed; using fallback answer")
+        ai_provider.log_failure(logger, "Bedrock chat call failed; using fallback answer")
         answer = fallback_answer(context)
         confidence = 0.3
         disclaimer = DISCLAIMER

@@ -15,6 +15,20 @@ Parameters:
   BedrockFoundationModelId:
     Type: String
     Default: anthropic.claude-haiku-4-5-20251001-v1:0
+  AiProvider:
+    Type: String
+    AllowedValues:
+      - bedrock
+      - openai
+    Default: bedrock
+    Description: Model provider. bedrock is the default; openai is for testing while Bedrock access is pending.
+  OpenAIModel:
+    Type: String
+    Default: gpt-4o-mini
+  OpenAIApiKeyParameterName:
+    Type: String
+    Default: /cloud-cost-optimizer/openai-api-key
+    Description: Name of the SSM SecureString that holds the OpenAI API key. The key itself is not stored in this template.
 
 Globals:
   Function:
@@ -239,6 +253,9 @@ Resources:
           RECOMMENDATIONS_TABLE: !Ref RecommendationsTable
           CORS_ORIGIN: !Ref FrontendUrl
           BEDROCK_MODEL_ID: !Ref BedrockModelId
+          AI_PROVIDER: !Ref AiProvider
+          OPENAI_MODEL: !Ref OpenAIModel
+          OPENAI_API_KEY_PARAMETER: !Ref OpenAIApiKeyParameterName
           ENABLE_AI_EXPLANATIONS: "true"
       Policies:
         - Statement:
@@ -264,6 +281,9 @@ Resources:
               Resource:
                 - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/${BedrockModelId}"
                 - !Sub "arn:aws:bedrock:*::foundation-model/${BedrockFoundationModelId}"
+            - Effect: Allow
+              Action: ssm:GetParameter
+              Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${OpenAIApiKeyParameterName}"
       Events:
         UploadCreated:
           Type: S3
@@ -309,6 +329,9 @@ Resources:
           RECOMMENDATIONS_TABLE: !Ref RecommendationsTable
           CHAT_HISTORY_TABLE: !Ref ChatHistoryTable
           BEDROCK_MODEL_ID: !Ref BedrockModelId
+          AI_PROVIDER: !Ref AiProvider
+          OPENAI_MODEL: !Ref OpenAIModel
+          OPENAI_API_KEY_PARAMETER: !Ref OpenAIApiKeyParameterName
           CORS_ORIGIN: !Ref FrontendUrl
       Policies:
         - Statement:
@@ -329,6 +352,9 @@ Resources:
               Resource:
                 - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/${BedrockModelId}"
                 - !Sub "arn:aws:bedrock:*::foundation-model/${BedrockFoundationModelId}"
+            - Effect: Allow
+              Action: ssm:GetParameter
+              Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${OpenAIApiKeyParameterName}"
       Events:
         PostChat:
           Type: HttpApi

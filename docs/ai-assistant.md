@@ -24,6 +24,7 @@ Billing CSV
 
 | File | Purpose |
 |---|---|
+| `backend/functions/process_billing_file/ai_provider.py` | Selects Bedrock or OpenAI. The chatbot folder has an identical copy, because each Lambda is packaged from its own folder. |
 | `backend/functions/process_billing_file/explanations.py` | Sends each validated recommendation to Bedrock and stores the result in `aiExplanation`. Uses template text if Bedrock fails. |
 | `backend/functions/chatbot/chat.py` | Chatbot logic: builds the data context, calls Bedrock, checks numbers, builds the response. |
 | `backend/functions/chatbot/handler.py` | AWS Lambda entry point for `POST /chat` and `GET /chat/history`. Reads and writes DynamoDB. |
@@ -37,6 +38,21 @@ Billing CSV
 - Region: `us-west-2`
 - Chosen because it is fast (about 1 second per answer) and low-cost, which suits short explanations and chat.
 - The AWS account that runs the project must complete Anthropic's one-time use case form in the Bedrock console before the model can be called.
+
+## Switching the AI provider
+
+`AI_PROVIDER` chooses the model provider. It defaults to `bedrock`, which is the behavior above. Set it to `openai` to call OpenAI while Bedrock access is pending. Switch back by setting `AI_PROVIDER` to `bedrock` (or unsetting it) and redeploying.
+
+| Variable | Purpose |
+|---|---|
+| `AI_PROVIDER` | `bedrock` (default) or `openai` |
+| `OPENAI_MODEL` | OpenAI model. Defaults to `gpt-4o-mini`. |
+| `OPENAI_API_KEY` | API key for a local run. Deployed Lambdas do not receive this variable. |
+| `OPENAI_API_KEY_PARAMETER` | SSM SecureString name. Default `/cloud-cost-optimizer/openai-api-key`. |
+| `OPENAI_BASE_URL` | Optional. Defaults to `https://api.openai.com/v1`. |
+| `OPENAI_TIMEOUT_SECONDS` | Optional. Defaults to 20. |
+
+`./deploy.sh` stores `OPENAI_API_KEY` in that SSM parameter and deploys with `AiProvider=openai` when the variable is set. The processing and chatbot Lambdas can `ssm:GetParameter` that parameter (the AWS-managed `aws/ssm` key; no extra KMS permission). Bedrock permissions stay in place. Unset `OPENAI_API_KEY` and redeploy to use Bedrock again. `./destroy.sh` deletes the parameter if it exists. Billing summaries are sent to OpenAI in that mode, so use sample data only.
 
 ## Run it locally
 
@@ -149,6 +165,9 @@ Optional query parameter: `?conversationId=conv-...`. Returns `{"items": [...]}`
 | `RECOMMENDATIONS_TABLE` | chatbot | Recommendations table name |
 | `CHAT_HISTORY_TABLE` | chatbot | ChatHistory table name |
 | `BEDROCK_MODEL_ID` | both (optional) | defaults to `us.anthropic.claude-haiku-4-5-20251001-v1:0` |
+| `AI_PROVIDER` | both | `bedrock` (default) or `openai` |
+| `OPENAI_MODEL` | both | defaults to `gpt-4o-mini` when the provider is OpenAI |
+| `OPENAI_API_KEY_PARAMETER` | both | SSM parameter name for the OpenAI key. The key is not an environment variable. |
 | `ENABLE_AI_EXPLANATIONS` | processing (optional) | `true` (default) or `false` to skip Bedrock |
 | `CORS_ORIGIN` | chatbot (optional) | the CloudFront URL of the frontend |
 
