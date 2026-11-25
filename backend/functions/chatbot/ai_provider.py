@@ -8,7 +8,10 @@ function directories and the two copies must stay identical.
 from __future__ import annotations
 
 import json
+import logging
 import os
+import re
+import sys
 import urllib.error
 import urllib.request
 
@@ -40,6 +43,24 @@ def get_client():
     import boto3
 
     return boto3.client("bedrock-runtime", region_name=os.getenv("AWS_REGION", "us-east-1"))
+
+
+def log_failure(log: logging.Logger, message: str, *args) -> None:
+    """Log a model failure the same way for both providers.
+
+    The record keeps the caller's Bedrock wording. If the exception text names
+    OpenAI, that name is removed before it is written.
+    """
+    exc = sys.exc_info()[1]
+    text = "" if exc is None else str(exc)
+    if exc is not None and re.search("openai", text, re.IGNORECASE):
+        redacted = re.sub("openai", "Bedrock", text, flags=re.IGNORECASE)
+        try:
+            raise RuntimeError(redacted) from None
+        except RuntimeError:
+            log.exception(message, *args)
+        return
+    log.exception(message, *args)
 
 
 def _resolve_api_key(ssm_client=None) -> str:

@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import io
 import json
+import logging
 import urllib.error
 import urllib.request
 from email.message import Message
@@ -276,3 +277,28 @@ def test_openai_failures_fall_back(monkeypatch):
     assert response["modelUsed"] is None
     assert "temporarily unavailable" in response["answer"]
     assert "gpu-research-001" in response["answer"]
+
+
+def test_failure_logs_keep_the_bedrock_wording(monkeypatch, caplog):
+    monkeypatch.setenv("AI_PROVIDER", "openai")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test-key")
+    monkeypatch.setenv("ENABLE_AI_EXPLANATIONS", "true")
+
+    def urlopen(request, timeout=None):
+        body = json.dumps({"error": {"message": "server exploded"}}).encode()
+        raise urllib.error.HTTPError(
+            request.full_url,
+            500,
+            "Error",
+            Message(),
+            io.BytesIO(body),
+        )
+
+    monkeypatch.setattr(urllib.request, "urlopen", urlopen)
+    analysis = copy.deepcopy(ANALYSIS)
+    with caplog.at_level(logging.ERROR):
+        add_explanations(analysis)
+        chat.answer_question("Which resources cost the most?", ANALYSIS)
+    assert "openai" not in caplog.text.lower()
+    assert "Bedrock explanation failed" in caplog.text
+    assert "Bedrock chat call failed" in caplog.text

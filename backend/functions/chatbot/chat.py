@@ -180,7 +180,7 @@ def answer_question(
         )
         answer = response["output"]["message"]["content"][0]["text"].strip()
         if not answer:
-            raise ValueError("AI provider returned an empty answer.")
+            raise ValueError("Bedrock returned an empty answer.")
         unknown = unverified_numbers(answer, context_text)
         if unknown:
             logger.warning("Answer contains numbers not found in the data: %s", unknown)
@@ -193,7 +193,7 @@ def answer_question(
             confidence = 0.9
             disclaimer = DISCLAIMER
     except Exception:
-        logger.exception("AI provider chat call failed; using fallback answer")
+        ai_provider.log_failure(logger, "Bedrock chat call failed; using fallback answer")
         answer = fallback_answer(context)
         confidence = 0.3
         disclaimer = DISCLAIMER

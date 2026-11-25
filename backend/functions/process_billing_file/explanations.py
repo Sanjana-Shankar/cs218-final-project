@@ -91,7 +91,9 @@ def explain_recommendation(recommendation: dict, client=None) -> tuple[str, str]
             raise ValueError("Bedrock returned an empty explanation.")
         return text, "generated"
     except Exception:
-        logger.exception("Bedrock explanation failed for %s; using fallback", recommendation.get("resourceId"))
+        ai_provider.log_failure(
+            logger, "Bedrock explanation failed for %s; using fallback", recommendation.get("resourceId")
+        )
         return fallback_explanation(recommendation), "fallback"
 
 
@@ -114,7 +116,7 @@ def _safe_client():
     try:
         return _bedrock_client()
     except Exception:
-        logger.exception("Could not create Bedrock client")
+        ai_provider.log_failure(logger, "Could not create Bedrock client")
         return _FailingClient()
 
 
