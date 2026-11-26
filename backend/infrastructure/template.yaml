@@ -12,6 +12,11 @@ Parameters:
   BedrockModelId:
     Type: String
     Default: us.anthropic.claude-haiku-4-5-20251001-v1:0
+  Spotlighting:
+    Type: String
+    Default: datamark
+    AllowedValues: ["off", "delimit", "datamark"]
+    Description: Prompt-injection defense for text from uploaded files (Hines et al., 2024)
   BedrockFoundationModelId:
     Type: String
     Default: anthropic.claude-haiku-4-5-20251001-v1:0
@@ -240,6 +245,7 @@ Resources:
           CORS_ORIGIN: !Ref FrontendUrl
           BEDROCK_MODEL_ID: !Ref BedrockModelId
           ENABLE_AI_EXPLANATIONS: "true"
+          SPOTLIGHTING: !Ref Spotlighting
       Policies:
         - Statement:
             - Effect: Allow
@@ -309,6 +315,7 @@ Resources:
           RECOMMENDATIONS_TABLE: !Ref RecommendationsTable
           CHAT_HISTORY_TABLE: !Ref ChatHistoryTable
           BEDROCK_MODEL_ID: !Ref BedrockModelId
+          SPOTLIGHTING: !Ref Spotlighting
           CORS_ORIGIN: !Ref FrontendUrl
       Policies:
         - Statement:

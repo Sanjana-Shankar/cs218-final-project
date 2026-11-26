@@ -15,6 +15,11 @@ import json
 import logging
 import os
 
+try:  # works both as a package (tests) and as a flat Lambda folder
+    from . import spotlight
+except ImportError:  # pragma: no cover
+    import spotlight
+
 logger = logging.getLogger(__name__)
 
 DEFAULT_MODEL_ID = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
@@ -80,12 +85,13 @@ def explain_recommendation(recommendation: dict, client=None) -> tuple[str, str]
             messages=[
                 {
                     "role": "user",
-                    "content": [{"text": "Finding:\n" + json.dumps(facts, indent=2, default=float)}],
+                    "content": [{"text": "Finding:\n" + spotlight.build_data_block(
+                        json.loads(json.dumps(facts, default=float)))}],
                 }
             ],
             inferenceConfig={"maxTokens": 300, "temperature": 0.2},
         )
-        text = response["output"]["message"]["content"][0]["text"].strip()
+        text = spotlight.clean_answer(response["output"]["message"]["content"][0]["text"]).strip()
         if not text:
             raise ValueError("Bedrock returned an empty explanation.")
         return text, "generated"
